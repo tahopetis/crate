@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { CIType, CILifecycle, CIAsset, RelationshipType, Relationship, CIFilters } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 
 interface CIStore {
   // State
@@ -23,6 +24,9 @@ interface CIStore {
     relationshipTypes?: string;
     relationships?: string;
   };
+
+  // API helper
+  apiRequest: (endpoint: string, options?: RequestInit) => Promise<any>;
 
   // CI Types
   fetchCITypes: () => Promise<void>;
@@ -107,7 +111,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   fetchCITypes: async () => {
     set((state) => ({ loading: { ...state.loading, ciTypes: true } }));
     try {
-      const data = await get().apiRequest('/ci/types');
+      const data = await apiClient.get('/ci/types') as CIType[];
       set({ ciTypes: data });
     } catch (error) {
       set((state) => ({

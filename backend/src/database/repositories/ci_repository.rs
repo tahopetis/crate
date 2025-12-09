@@ -1,12 +1,12 @@
 use crate::database::PgPool;
-use crate::models::CIType;
+use crate::models::{CIType, CIAssetFilter};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::{postgres::PgRow, Row};
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CIRepository {
     pool: PgPool,
 }
@@ -344,5 +344,116 @@ impl CIRepository {
         .await?;
 
         Ok(result.rows_affected() > 0)
+    }
+
+    /// Enhanced asset listing with advanced filtering
+    pub async fn list_ci_assets_filtered(
+        &self,
+        filter: &CIAssetFilter,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<(Uuid, String, Value, Uuid)>> {
+        // Start with base query
+        let mut query = String::from(
+            r#"
+            SELECT id, name, attributes, ci_type_id
+            FROM ci_assets
+            WHERE deleted_at IS NULL
+            "#
+        );
+
+        // Add conditions dynamically
+        let mut conditions = Vec::new();
+
+        if filter.ci_type_id.is_some() {
+            conditions.push("ci_type_id = $1");
+        }
+        if filter.name.is_some() {
+            conditions.push("name ILIKE $2");
+        }
+        if filter.created_by.is_some() {
+            conditions.push("created_by = $3");
+        }
+        if filter.created_after.is_some() {
+            conditions.push("created_at >= $4");
+        }
+        if filter.created_before.is_some() {
+            conditions.push("created_at <= $5");
+        }
+
+        if !conditions.is_empty() {
+            query.push_str(" AND ");
+            query.push_str(&conditions.join(" AND "));
+        }
+
+        query.push_str(" ORDER BY created_at DESC ");
+        query.push_str(&format!("LIMIT {} OFFSET {}", limit, offset));
+
+        // Build query based on available filters
+        let mut query_builder = sqlx::query(&query);
+
+        if let Some(ci_type_id) = filter.ci_type_id {
+            query_builder = query_builder.bind(ci_type_id);
+        }
+        if let Some(ref name) = filter.name {
+            let search_pattern = format!("%{}%", name);
+            query_builder = query_builder.bind(search_pattern);
+        } else {
+            query_builder = query_builder.bind::<Option<String>>(None);
+        }
+        query_builder = query_builder.bind(filter.created_by);
+        query_builder = query_builder.bind(filter.created_after);
+        query_builder = query_builder.bind(filter.created_before);
+
+        let rows = query_builder
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(rows.into_iter()
+            .map(|r: PgRow| (
+                r.get("id"),
+                r.get("name"),
+                r.get("attributes"),
+                r.get("ci_type_id")
+            ))
+            .collect())
+    }
+
+    /// Full-text search for CI assets
+    pub async fn search_ci_assets(
+        &self,
+        query_str: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<(Uuid, String, Value, Uuid)>> {
+        let search_pattern = format!("%{}%", query_str);
+
+        let rows = sqlx::query(
+            r#"
+            SELECT id, name, attributes, ci_type_id
+            FROM ci_assets
+            WHERE deleted_at IS NULL
+            AND (
+                name ILIKE $1
+                OR attributes::text ILIKE $1
+            )
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(&search_pattern)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter()
+            .map(|r: PgRow| (
+                r.get("id"),
+                r.get("name"),
+                r.get("attributes"),
+                r.get("ci_type_id")
+            ))
+            .collect())
     }
 }

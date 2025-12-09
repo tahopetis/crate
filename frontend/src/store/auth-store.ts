@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AuthState, User, LoginCredentials, RegisterData } from '@/lib/types';
+import { apiClient, apiEndpoints } from '@/lib/api';
 
 interface AuthStore extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -28,20 +29,7 @@ export const useAuthStore = create<AuthStore>()(
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(credentials),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Login failed');
-          }
-
-          const data = await response.json();
+          const data = await apiClient.post<any>(apiEndpoints.auth.login, credentials);
 
           set({
             user: data.user,
@@ -62,20 +50,7 @@ export const useAuthStore = create<AuthStore>()(
       register: async (data: RegisterData) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Registration failed');
-          }
-
-          const result = await response.json();
+          const result = await apiClient.post<any>(apiEndpoints.auth.register, data);
 
           set({
             user: result.user,
@@ -122,20 +97,7 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         try {
-          const response = await fetch('/api/auth/refresh', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            get().logout();
-            return;
-          }
-
-          const data = await response.json();
+          const data = await apiClient.post<any>(apiEndpoints.auth.refresh);
           set({ token: data.token });
         } catch (error) {
           get().logout();

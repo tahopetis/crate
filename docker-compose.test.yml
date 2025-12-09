@@ -1,0 +1,130 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: crates-postgres
+    environment:
+      POSTGRES_DB: crate_dev
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d crate_dev && psql -U dev -d crate_dev -c 'SELECT 1'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - crates-network
+
+  neo4j:
+    image: neo4j:5.12-community
+    container_name: crates-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/dev12345
+      NEO4J_dbms_default__database: neo4j
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 1G
+      NEO4J_dbms_security_procedures_unrestricted: gds.*,apoc.*
+      NEO4J_dbms_security_procedures_allowlist: gds.*,apoc.*
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - ./database/neo4j:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "dev12345", "RETURN 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - crates-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: crates-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crates-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: docker/Dockerfile
+    container_name: crates-backend
+    environment:
+      DATABASE_URL: postgresql://dev:dev123@postgres:5432/crate_dev
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev123
+      POSTGRES_DB: crate_dev
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: dev12345
+      NEO4J_DATABASE: neo4j
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: test_secret_key_for_development_only
+      JWT_EXPIRATION_HOURS: "24"
+      SERVER_PORT: "3000"
+      LOG_LEVEL: info
+      CORS_ORIGIN: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c 'echo >/dev/tcp/localhost/3000' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    networks:
+      - crates-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crates-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+      NEXT_PUBLIC_APP_NAME: CRATE - CI Asset Management
+    ports:
+      - "3001:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - crates-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  redis_data:
+
+networks:
+  crates-network:
+    driver: bridge

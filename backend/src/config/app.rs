@@ -90,7 +90,12 @@ impl CorsConfig {
             allowed_headers: env::var("CORS_ALLOWED_HEADERS")
                 .ok()
                 .map(|headers| headers.split(',').map(|s| s.to_string()).collect())
-                .unwrap_or_else(|| vec!["*".to_string()]),
+                .unwrap_or_else(|| vec![
+                    "authorization".to_string(),
+                    "content-type".to_string(),
+                    "accept".to_string(),
+                    "x-requested-with".to_string(),
+                ]),
             allow_credentials: env::var("CORS_ALLOW_CREDENTIALS")
                 .ok()
                 .and_then(|c| c.parse().ok())

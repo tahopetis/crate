@@ -1,5 +1,5 @@
 # Use a smaller, more secure base image
-FROM rust:1.75-slim as builder
+FROM rust:1.91-slim as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -42,8 +42,9 @@ RUN useradd -m -u 1000 appuser
 # Set working directory
 WORKDIR /app
 
-# Copy the binary from builder stage
+# Copy the binary and migrations from builder stage
 COPY --from=builder /app/target/release/server ./server
+COPY --from=builder /app/src/database ./src/database
 
 # Change ownership to appuser
 RUN chown -R appuser:appuser /app

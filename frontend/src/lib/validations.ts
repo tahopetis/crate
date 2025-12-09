@@ -64,9 +64,9 @@ export type RegisterFormData = z.infer<typeof registerSchema>;
 // CI Type schemas
 export const ciTypeSchema = z.object({
   name: requiredStringSchema.max(100, 'Name must be less than 100 characters'),
-  description: optionalStringSchema.max(500, 'Description must be less than 500 characters'),
-  icon: optionalStringSchema.max(50, 'Icon name must be less than 50 characters'),
-  color: optionalStringSchema.regex(/^#[0-9A-F]{6}$/i, 'Invalid color format'),
+  description: z.string().max(500, 'Description must be less than 500 characters').optional(),
+  icon: z.string().max(50, 'Icon name must be less than 50 characters').optional(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
   attributes: z.record(z.any()).optional().default({}),
 });
 
@@ -88,12 +88,12 @@ export type CIAssetFormData = z.infer<typeof ciAssetSchema>;
 // Lifecycle schemas
 export const lifecycleSchema = z.object({
   name: requiredStringSchema.max(100, 'Name must be less than 100 characters'),
-  description: optionalStringSchema.max(500, 'Description must be less than 500 characters'),
+  description: z.string().max(500, 'Description must be less than 500 characters').optional(),
   statuses: z.array(z.object({
     name: requiredStringSchema.max(100, 'Status name must be less than 100 characters'),
     order: z.number().int().min(0),
-    color: optionalStringSchema.regex(/^#[0-9A-F]{6}$/i, 'Invalid color format'),
-    description: optionalStringSchema.max(500, 'Description must be less than 500 characters'),
+    color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
+    description: z.string().max(500, 'Description must be less than 500 characters').optional(),
   })).min(1, 'At least one status is required'),
 });
 
@@ -102,7 +102,7 @@ export type LifecycleFormData = z.infer<typeof lifecycleSchema>;
 // Relationship Type schemas
 export const relationshipTypeSchema = z.object({
   name: requiredStringSchema.max(100, 'Name must be less than 100 characters'),
-  description: optionalStringSchema.max(500, 'Description must be less than 500 characters'),
+  description: z.string().max(500, 'Description must be less than 500 characters').optional(),
   is_bidirectional: z.boolean().default(false),
   source_cardinality: z.enum(['one', 'many'], {
     required_error: 'Source cardinality is required',
@@ -171,7 +171,10 @@ export type SearchData = z.infer<typeof searchSchema>;
 
 // File upload schema
 export const fileUploadSchema = z.object({
-  file: z.instanceof(File).refine(
+  file: z.any().refine(
+    (file) => file && typeof file === 'object' && file.constructor.name === 'File',
+    'File is required'
+  ).refine(
     (file) => file.size <= 10 * 1024 * 1024, // 10MB
     'File size must be less than 10MB'
   ).refine(

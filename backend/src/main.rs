@@ -19,7 +19,18 @@ use crate_backend::{
         dashboard::get_dashboard_stats,
         ci_management::{
             create_ci_type, list_ci_types, create_ci_asset, list_ci_assets,
-            get_ci_asset, update_ci_asset, delete_ci_asset
+            get_ci_asset, update_ci_asset, delete_ci_asset, get_ci_type,
+            update_ci_type, delete_ci_type
+        },
+        lifecycle::{
+            create_lifecycle_type, get_lifecycle_type, list_lifecycle_types,
+            update_lifecycle_type, delete_lifecycle_type,
+            create_lifecycle_state, get_lifecycle_state, update_lifecycle_state, delete_lifecycle_state,
+            create_ci_type_lifecycle_mapping, get_lifecycles_for_ci_type, get_lifecycle_colors
+        },
+        relationship::{
+            create_relationship_type, get_relationship_type, list_relationship_types,
+            update_relationship_type, delete_relationship_type
         },
         graph::{get_graph_data, get_node_neighbors, search_nodes},
         audit::get_audit_logs,
@@ -82,21 +93,22 @@ fn create_app(app_state: AppState) -> Router {
             rate_limit_middleware,
         ));
 
-    // Create API routes
-    let api_routes = Router::new()
-        // Health check (no auth required)
+    // Create public routes (no auth required)
+    let public_routes = Router::new()
         .route("/health", get(health_check))
-
-        // Authentication routes (no auth required)
         .route("/auth/login", post(login))
         .route("/auth/register", post(register))
-        .route("/auth/logout", post(logout))
+        .route("/auth/logout", post(logout));
 
-        // Protected routes
+    // Create protected routes
+    let protected_routes = Router::new()
         .route("/auth/me", get(get_current_user))
         .route("/dashboard/stats", get(get_dashboard_stats))
         .route("/ci-types", post(create_ci_type))
         .route("/ci-types", get(list_ci_types))
+        .route("/ci-types/:id", get(get_ci_type))
+        .route("/ci-types/:id", put(update_ci_type))
+        .route("/ci-types/:id", delete(delete_ci_type))
         .route("/ci-assets", post(create_ci_asset))
         .route("/ci-assets", get(list_ci_assets))
         .route("/ci-assets/:id", get(get_ci_asset))
@@ -110,10 +122,34 @@ fn create_app(app_state: AppState) -> Router {
         .route("/amortization/assets/:id/schedule", get(get_amortization_schedule))
         .route("/import/ci-assets", post(import_ci_assets))
         .route("/export/ci-assets", get(export_ci_assets))
+
+        // Lifecycle Management
+        .route("/lifecycle-types", post(create_lifecycle_type))
+        .route("/lifecycle-types", get(list_lifecycle_types))
+        .route("/lifecycle-types/:id", get(get_lifecycle_type))
+        .route("/lifecycle-types/:id", put(update_lifecycle_type))
+        .route("/lifecycle-types/:id", delete(delete_lifecycle_type))
+        .route("/lifecycle-colors", get(get_lifecycle_colors))
+        .route("/lifecycle-states", post(create_lifecycle_state))
+        .route("/lifecycle-states/:id", get(get_lifecycle_state))
+        .route("/lifecycle-states/:id", put(update_lifecycle_state))
+        .route("/lifecycle-states/:id", delete(delete_lifecycle_state))
+        .route("/ci-type-lifecycles", post(create_ci_type_lifecycle_mapping))
+        .route("/ci-types/:id/lifecycles", get(get_lifecycles_for_ci_type))
+
+        // Relationship Management
+        .route("/relationship-types", post(create_relationship_type))
+        .route("/relationship-types", get(list_relationship_types))
+        .route("/relationship-types/:id", get(get_relationship_type))
+        .route("/relationship-types/:id", put(update_relationship_type))
+        .route("/relationship-types/:id", delete(delete_relationship_type))
         .layer(middleware::from_fn_with_state(
             app_state.config.auth.jwt_secret.clone(),
             auth_middleware,
         ));
+
+    // Combine routes
+    let api_routes = public_routes.merge(protected_routes);
 
     // Combine with middleware and state
     Router::new()

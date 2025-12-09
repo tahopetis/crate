@@ -1,7 +1,7 @@
 import { ApiResponse, PaginatedResponse } from '@/lib/types';
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // API Client class
 class ApiClient {
@@ -168,13 +168,13 @@ export const apiEndpoints = {
 
   // CI Management
   ci: {
-    types: '/ci/types',
-    lifecycles: '/ci/lifecycles',
-    assets: '/ci/assets',
-    relationshipTypes: '/ci/relationship-types',
-    relationships: '/ci/relationships',
-    import: '/ci/import',
-    export: '/ci/export',
+    types: '/ci-types',
+    lifecycles: '/lifecycle-types',
+    assets: '/ci-assets',
+    relationshipTypes: '/relationship-types',
+    relationships: '/relationships',
+    import: '/import/ci-assets',
+    export: '/export/ci-assets',
   },
 
   // Graph
@@ -222,7 +222,7 @@ export const createApiHook = <T>(endpoint: string, options?: RequestInit) => {
       }
     }
 
-    return apiClient.request<T>(url, options);
+    return apiClient.get<T>(url);
   };
 };
 

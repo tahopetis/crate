@@ -54,6 +54,8 @@ pub struct CIAssetFilter {
     pub created_by: Option<Uuid>,
     pub created_after: Option<DateTime<Utc>>,
     pub created_before: Option<DateTime<Utc>>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
 impl From<(CIAsset, String)> for CIAssetResponse {

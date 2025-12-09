@@ -47,7 +47,7 @@ export default function Page() {
               Feature Coming Soon
             </h3>
             <p className="text-gray-600 max-w-md mx-auto">
-              We're working hard to bring you this functionality. This page will include
+              We&apos;re working hard to bring you this functionality. This page will include
               comprehensive tools for managing this aspect of your IT assets.
             </p>
           </div>

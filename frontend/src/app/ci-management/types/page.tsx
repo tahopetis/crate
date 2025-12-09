@@ -129,13 +129,13 @@ export default function CITypesPage() {
     setIsSubmitting(true);
     try {
       if (editingCIType) {
-        await updateCIType(editingCIType.id, data);
+        await updateCIType(editingCIType.id, data as Partial<CIType>);
         toast({
           title: "Success",
           description: `CI Type "${data.name}" has been updated.`,
         });
       } else {
-        await createCIType(data);
+        await createCIType(data as Omit<CIType, 'id' | 'created_at' | 'updated_at'>);
         toast({
           title: "Success",
           description: `CI Type "${data.name}" has been created.`,

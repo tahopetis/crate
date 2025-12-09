@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   description: 'Comprehensive IT Asset Management Platform',
   keywords: ['IT Asset Management', 'CI', 'Configuration Management', 'ITAM'],
   authors: [{ name: 'Crate Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#000000',
 }
 

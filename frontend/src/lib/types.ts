@@ -38,6 +38,118 @@ export interface CIType {
   updatedAt: string;
 }
 
+// === Configurable Lifecycle Types Management ===
+
+export interface LifecycleType {
+  id: string;
+  name: string;
+  description?: string;
+  default_color: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+export interface LifecycleState {
+  id: string;
+  lifecycle_type_id: string;
+  name: string;
+  description?: string;
+  color: string;
+  order_index: number;
+  is_initial_state: boolean;
+  is_terminal_state: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface LifecycleTransition {
+  id: string;
+  lifecycle_type_id: string;
+  from_state_id?: string;
+  to_state_id: string;
+  transition_name?: string;
+  description?: string;
+  requires_approval: boolean;
+  created_at: string;
+}
+
+export interface CITypeLifecycleMapping {
+  id: string;
+  ci_type_id: string;
+  lifecycle_type_id: string;
+  is_default: boolean;
+  created_by: string;
+  created_at: string;
+}
+
+export interface LifecycleTypeResponse {
+  id: string;
+  name: string;
+  description?: string;
+  default_color: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  states: LifecycleState[];
+  transitions: LifecycleTransition[];
+}
+
+export interface LifecycleTypeSummary {
+  id: string;
+  name: string;
+  description?: string;
+  default_color: string;
+  is_active: boolean;
+  state_count: number;
+  ci_type_count: number;
+  created_at: string;
+}
+
+// Request types
+export interface CreateLifecycleTypeRequest {
+  name: string;
+  description?: string;
+  default_color?: string;
+}
+
+export interface UpdateLifecycleTypeRequest {
+  name?: string;
+  description?: string;
+  default_color?: string;
+  is_active?: boolean;
+}
+
+export interface CreateLifecycleStateRequest {
+  lifecycle_type_id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  order_index: number;
+  is_initial_state?: boolean;
+  is_terminal_state?: boolean;
+}
+
+export interface UpdateLifecycleStateRequest {
+  name?: string;
+  description?: string;
+  color?: string;
+  order_index?: number;
+  is_initial_state?: boolean;
+  is_terminal_state?: boolean;
+}
+
+export interface CreateCITypeLifecycleRequest {
+  ci_type_id: string;
+  lifecycle_type_id: string;
+  is_default?: boolean;
+}
+
+// Legacy CI Lifecycle Status (for asset lifecycle tracking)
 export interface CILifecycle {
   id: string;
   name: string;
@@ -74,11 +186,41 @@ export interface RelationshipType {
   id: string;
   name: string;
   description?: string;
+  from_ci_type_id?: string;
+  to_ci_type_id?: string;
   is_bidirectional: boolean;
-  source_cardinality: 'one' | 'many';
-  target_cardinality: 'one' | 'many';
+  reverse_name?: string;
+  attributes_schema: Record<string, any>;
+  created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface RelationshipTypeResponse {
+  id: string;
+  name: string;
+  description?: string;
+  from_ci_type_id?: string;
+  to_ci_type_id?: string;
+  is_bidirectional: boolean;
+  reverse_name?: string;
+  attributes_schema: Record<string, any>;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+  relationship_count: number;
+}
+
+export interface RelationshipTypeSummary {
+  id: string;
+  name: string;
+  description?: string;
+  is_bidirectional: boolean;
+  reverse_name?: string;
+  from_ci_type_name?: string;
+  to_ci_type_name?: string;
+  relationship_count: number;
 }
 
 export interface Relationship {
@@ -252,4 +394,71 @@ export interface TimeSeriesData {
   date: string;
   value: number;
   label?: string;
+}
+
+// === Relationship Types Request/Response Types ===
+
+export interface CreateRelationshipTypeRequest {
+  name: string;
+  description?: string;
+  from_ci_type_id?: string;
+  to_ci_type_id?: string;
+  is_bidirectional?: boolean;
+  reverse_name?: string;
+  attributes_schema?: Record<string, any>;
+}
+
+export interface UpdateRelationshipTypeRequest {
+  name?: string;
+  description?: string;
+  from_ci_type_id?: string;
+  to_ci_type_id?: string;
+  is_bidirectional?: boolean;
+  reverse_name?: string;
+  attributes_schema?: Record<string, any>;
+}
+
+export interface RelationshipTypeFilter {
+  search?: string;
+  from_ci_type_id?: string;
+  to_ci_type_id?: string;
+  is_bidirectional?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+// Enhanced CI Asset Types
+
+export interface CIAssetResponse {
+  id: string;
+  ci_type_id: string;
+  ci_type_name: string;
+  name: string;
+  attributes: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by?: string;
+}
+
+export interface CreateCIAssetRequest {
+  ci_type_id: string;
+  name: string;
+  attributes?: Record<string, any>;
+}
+
+export interface UpdateCIAssetRequest {
+  name?: string;
+  attributes?: Record<string, any>;
+}
+
+export interface CIAssetFilter {
+  ci_type_id?: string;
+  name?: string;
+  created_by?: string;
+  created_after?: string;
+  created_before?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
 }

@@ -78,7 +78,7 @@ export const useUIStore = create<UIStore>()(
         set((state) => ({
           errors: {
             ...state.errors,
-            [key]: error,
+            [key]: error || '',
           },
         }));
       },

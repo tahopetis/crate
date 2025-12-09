@@ -173,7 +173,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {Object.entries(passwordStrength.checks).map(([check, passed]) => (
+                  {passwordStrength.checks && Object.entries(passwordStrength.checks).map(([check, passed]) => (
                     <div key={check} className="flex items-center space-x-1">
                       {passed ? (
                         <Check className="h-3 w-3 text-green-500" />
