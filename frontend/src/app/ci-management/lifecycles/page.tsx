@@ -98,7 +98,7 @@ export default function LifecycleManagementPage() {
   const fetchLifecycles = async () => {
     try {
       setIsLoading(true);
-      const result = await apiClient.get('/lifecycle-types');
+      const result = await apiClient.get('/lifecycle-types') as any;
       setLifecycles(result.data || []);
     } catch (error) {
       toast({
@@ -114,7 +114,7 @@ export default function LifecycleManagementPage() {
   // Fetch lifecycle details with states
   const fetchLifecycleDetails = async (id: string) => {
     try {
-      const result = await apiClient.get(`/lifecycle-types/${id}`);
+      const result = await apiClient.get(`/lifecycle-types/${id}`) as any;
       setSelectedLifecycle(result);
       setStates(result.states || []);
       setStatesForm(prev => ({ ...prev, lifecycle_type_id: id }));

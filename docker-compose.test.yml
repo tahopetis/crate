@@ -81,7 +81,7 @@ services:
       JWT_EXPIRATION_HOURS: "24"
       SERVER_PORT: "3000"
       LOG_LEVEL: info
-      CORS_ORIGIN: http://localhost:3001
+      CORS_ALLOWED_ORIGINS: http://localhost:3001
     ports:
       - "3000:3000"
     depends_on:

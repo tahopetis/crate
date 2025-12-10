@@ -14,7 +14,7 @@ export function useAuth() {
     login,
     register,
     logout,
-    refreshToken,
+    // refreshToken, // TODO: Not implemented in backend
     clearError,
   } = useAuthStore();
 
@@ -29,27 +29,25 @@ export function useAuth() {
     }
   }, [user]);
 
-  // Auto-refresh token before expiration
-  useEffect(() => {
-    if (!token || !isAuthenticated) return;
+  // TODO: Auto-refresh token before expiration (backend doesn't have refresh endpoint yet)
+  // useEffect(() => {
+  //   if (!token || !isAuthenticated) return;
 
-    const checkTokenExpiration = () => {
-      if (authUtils.isTokenExpired(token)) {
-        refreshToken().catch(() => {
-          // If refresh fails, log out
-          logout();
-        });
-      }
-    };
+  //   const checkTokenExpiration = () => {
+  //     if (authUtils.isTokenExpired(token)) {
+  //       // If refresh fails, log out
+  //       logout();
+  //     }
+  //   };
 
-    // Check token expiration every 5 minutes
-    const interval = setInterval(checkTokenExpiration, 5 * 60 * 1000);
+  //   // Check token expiration every 5 minutes
+  //   const interval = setInterval(checkTokenExpiration, 5 * 60 * 1000);
 
-    // Check immediately
-    checkTokenExpiration();
+  //   // Check immediately
+  //   checkTokenExpiration();
 
-    return () => clearInterval(interval);
-  }, [token, isAuthenticated, refreshToken, logout]);
+  //   return () => clearInterval(interval);
+  // }, [token, isAuthenticated, logout]);
 
   return {
     user,
@@ -60,7 +58,7 @@ export function useAuth() {
     login,
     register,
     logout,
-    refreshToken,
+    // refreshToken, // TODO: Not implemented in backend
     clearError,
     // Convenience methods
     isAdmin: user?.role === 'admin',

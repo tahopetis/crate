@@ -96,7 +96,7 @@ export default function CIAssetsPage() {
       if (filters.limit) params.append('limit', filters.limit.toString());
       if (filters.offset) params.append('offset', filters.offset.toString());
 
-      const data = await apiClient.get(`/ci-assets?${params}`);
+      const data = await apiClient.get(`/ci-assets?${params}`) as any;
       setAssets(data.data || []);
     } catch (error) {
       console.error('Error fetching CI assets:', error);
@@ -108,7 +108,7 @@ export default function CIAssetsPage() {
 
   const fetchCITypes = async () => {
     try {
-      const data = await apiClient.get('/ci-types?limit=100');
+      const data = await apiClient.get('/ci-types?limit=100') as any;
       setCiTypes(data.data || []);
     } catch (error) {
       console.error('Error fetching CI types:', error);

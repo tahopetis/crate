@@ -64,7 +64,7 @@ export default function RelationshipTypesPage() {
       if (bidirectionalFilter !== undefined) params.append('is_bidirectional', bidirectionalFilter.toString());
 
       const endpoint = `/relationship-types${params.toString() ? `?${params.toString()}` : ''}`;
-      const data = await apiClient.get(endpoint);
+      const data = await apiClient.get(endpoint) as any;
 
       if (data.success) {
         setRelationshipTypes(data.data || []);
@@ -81,7 +81,7 @@ export default function RelationshipTypesPage() {
 
   const fetchCITypes = async () => {
     try {
-      const data = await apiClient.get('/ci-types?limit=100');
+      const data = await apiClient.get('/ci-types?limit=100') as any;
 
       if (data.success) {
         setCiTypes(data.data || []);
@@ -124,7 +124,7 @@ export default function RelationshipTypesPage() {
           reverse_name: formData.reverse_name || undefined,
         };
 
-        const result = await apiClient.put(`/relationship-types/${editingType.id}`, updateData);
+        const result = await apiClient.put(`/relationship-types/${editingType.id}`, updateData) as any;
 
         if (result.success) {
           toast.success('Relationship type updated successfully');
@@ -138,7 +138,7 @@ export default function RelationshipTypesPage() {
       } else {
         // Create new relationship type
         setIsCreating(true);
-        const result = await apiClient.post('/relationship-types', formData);
+        const result = await apiClient.post('/relationship-types', formData) as any;
 
         if (result.success) {
           toast.success('Relationship type created successfully');
@@ -190,7 +190,7 @@ export default function RelationshipTypesPage() {
 
     try {
       setIsDeleting(id);
-      const result = await apiClient.delete(`/relationship-types/${id}`);
+      const result = await apiClient.delete(`/relationship-types/${id}`) as any;
 
       if (result.success) {
         toast.success('Relationship type deleted successfully');

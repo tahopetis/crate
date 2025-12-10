@@ -10,7 +10,7 @@ interface AuthStore extends AuthState {
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   setLoading: (loading: boolean) => void;
-  refreshToken: () => Promise<void>;
+  // refreshToken: () => Promise<void>; // TODO: Not implemented in backend
   clearError: () => void;
   error: string | null;
 }
@@ -89,20 +89,21 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: loading });
       },
 
-      refreshToken: async () => {
-        const { token } = get();
-        if (!token) {
-          get().logout();
-          return;
-        }
+      // TODO: Implement refresh token endpoint in backend
+      // refreshToken: async () => {
+      //   const { token } = get();
+      //   if (!token) {
+      //     get().logout();
+      //     return;
+      //   }
 
-        try {
-          const data = await apiClient.post<any>(apiEndpoints.auth.refresh);
-          set({ token: data.token });
-        } catch (error) {
-          get().logout();
-        }
-      },
+      //   try {
+      //     const data = await apiClient.post<any>('/auth/refresh');
+      //     set({ token: data.token });
+      //   } catch (error) {
+      //     get().logout();
+      //   }
+      // },
 
       clearError: () => {
         set({ error: null });
