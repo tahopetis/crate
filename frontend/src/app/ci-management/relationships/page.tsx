@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Plus, Edit, Trash2, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiClient } from '@/lib/api';
 import type {
   RelationshipType,
   RelationshipTypeSummary,
@@ -62,8 +63,8 @@ export default function RelationshipTypesPage() {
       if (searchTerm) params.append('search', searchTerm);
       if (bidirectionalFilter !== undefined) params.append('is_bidirectional', bidirectionalFilter.toString());
 
-      const response = await fetch(`/api/v1/relationship-types?${params}`);
-      const data = await response.json();
+      const endpoint = `/relationship-types${params.toString() ? `?${params.toString()}` : ''}`;
+      const data = await apiClient.get(endpoint);
 
       if (data.success) {
         setRelationshipTypes(data.data || []);
@@ -72,7 +73,7 @@ export default function RelationshipTypesPage() {
       }
     } catch (error) {
       console.error('Error fetching relationship types:', error);
-      toast.error('Error loading relationship types');
+      toast.error(error instanceof Error ? error.message : 'Error loading relationship types');
     } finally {
       setLoading(false);
     }
@@ -80,14 +81,14 @@ export default function RelationshipTypesPage() {
 
   const fetchCITypes = async () => {
     try {
-      const response = await fetch('/api/v1/ci-types?limit=100');
-      const data = await response.json();
+      const data = await apiClient.get('/ci-types?limit=100');
 
       if (data.success) {
         setCiTypes(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching CI types:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to load CI types');
     }
   };
 
@@ -123,15 +124,7 @@ export default function RelationshipTypesPage() {
           reverse_name: formData.reverse_name || undefined,
         };
 
-        const response = await fetch(`/api/v1/relationship-types/${editingType.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updateData),
-        });
-
-        const result = await response.json();
+        const result = await apiClient.put(`/relationship-types/${editingType.id}`, updateData);
 
         if (result.success) {
           toast.success('Relationship type updated successfully');
@@ -145,15 +138,7 @@ export default function RelationshipTypesPage() {
       } else {
         // Create new relationship type
         setIsCreating(true);
-        const response = await fetch('/api/v1/relationship-types', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-
-        const result = await response.json();
+        const result = await apiClient.post('/relationship-types', formData);
 
         if (result.success) {
           toast.success('Relationship type created successfully');
@@ -205,11 +190,7 @@ export default function RelationshipTypesPage() {
 
     try {
       setIsDeleting(id);
-      const response = await fetch(`/api/v1/relationship-types/${id}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
+      const result = await apiClient.delete(`/relationship-types/${id}`);
 
       if (result.success) {
         toast.success('Relationship type deleted successfully');
@@ -219,7 +200,7 @@ export default function RelationshipTypesPage() {
       }
     } catch (error) {
       console.error('Error deleting relationship type:', error);
-      toast.error('Error deleting relationship type');
+      toast.error(error instanceof Error ? error.message : 'Error deleting relationship type');
     } finally {
       setIsDeleting(null);
     }

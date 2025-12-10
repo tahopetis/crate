@@ -143,7 +143,7 @@ cp .env.local.example .env.local
 
 ```env
 # API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8080/api
+NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
 NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
 
 # Application Configuration

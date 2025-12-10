@@ -162,7 +162,7 @@ export const apiEndpoints = {
     login: '/auth/login',
     register: '/auth/register',
     logout: '/auth/logout',
-    refresh: '/auth/refresh',
+    // refresh: '/auth/refresh', // TODO: Not implemented in backend
     me: '/auth/me',
   },
 
@@ -172,7 +172,7 @@ export const apiEndpoints = {
     lifecycles: '/lifecycle-types',
     assets: '/ci-assets',
     relationshipTypes: '/relationship-types',
-    relationships: '/relationships',
+    // relationships: '/relationships', // TODO: Phase 3.1 - Not implemented yet (only relationship types exist)
     import: '/import/ci-assets',
     export: '/export/ci-assets',
   },
@@ -180,28 +180,30 @@ export const apiEndpoints = {
   // Graph
   graph: {
     data: '/graph/data',
-    layout: '/graph/layout',
+    // layout: '/graph/layout', // TODO: Not implemented in backend
     search: '/graph/search',
   },
 
   // Audit
   audit: {
     logs: '/audit/logs',
-    changes: '/audit/changes',
+    // changes: '/audit/changes', // TODO: Not implemented in backend
   },
 
   // Amortization
   amortization: {
-    calculations: '/amortization/calculations',
-    history: '/amortization/history',
-    reports: '/amortization/reports',
+    records: '/amortization/records',
+    schedule: '/amortization/assets/:id/schedule',
+    // calculations: '/amortization/calculations', // TODO: Not implemented in backend
+    // history: '/amortization/history', // TODO: Not implemented in backend
+    // reports: '/amortization/reports', // TODO: Not implemented in backend
   },
 
   // Dashboard
   dashboard: {
     stats: '/dashboard/stats',
-    activity: '/dashboard/activity',
-    topAssets: '/dashboard/top-assets',
+    // activity: '/dashboard/activity', // TODO: Not implemented in backend
+    // topAssets: '/dashboard/top-assets', // TODO: Not implemented in backend
   },
 } as const;
 

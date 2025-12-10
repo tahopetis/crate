@@ -8,21 +8,18 @@ interface CIStore {
   lifecycles: CILifecycle[];
   assets: CIAsset[];
   relationshipTypes: RelationshipType[];
-  relationships: Relationship[];
   filters: CIFilters;
   loading: {
     ciTypes: boolean;
     lifecycles: boolean;
     assets: boolean;
     relationshipTypes: boolean;
-    relationships: boolean;
   };
   errors: {
     ciTypes?: string;
     lifecycles?: string;
     assets?: string;
     relationshipTypes?: string;
-    relationships?: string;
   };
 
   // CI Types
@@ -50,12 +47,6 @@ interface CIStore {
   updateRelationshipType: (id: string, data: Partial<RelationshipType>) => Promise<RelationshipType>;
   deleteRelationshipType: (id: string) => Promise<void>;
 
-  // Relationships
-  fetchRelationships: (ciAssetId?: string) => Promise<void>;
-  createRelationship: (data: Partial<Relationship>) => Promise<Relationship>;
-  updateRelationship: (id: string, data: Partial<Relationship>) => Promise<Relationship>;
-  deleteRelationship: (id: string) => Promise<void>;
-
   // Filters
   setFilters: (filters: Partial<CIFilters>) => void;
   clearFilters: () => void;
@@ -70,14 +61,12 @@ export const useCIStore = create<CIStore>((set, get) => ({
   lifecycles: [],
   assets: [],
   relationshipTypes: [],
-  relationships: [],
   filters: {},
   loading: {
     ciTypes: false,
     lifecycles: false,
     assets: false,
     relationshipTypes: false,
-    relationships: false,
   },
   errors: {},
 
@@ -238,49 +227,6 @@ export const useCIStore = create<CIStore>((set, get) => ({
     }));
   },
 
-  // Relationships
-  fetchRelationships: async (ciAssetId) => {
-    set((state) => ({ loading: { ...state.loading, relationships: true } }));
-    try {
-      const endpoint = ciAssetId ? `/ci/relationships?ci_asset_id=${ciAssetId}` : '/ci/relationships';
-      const data = await get().apiRequest(endpoint);
-      set({ relationships: data });
-    } catch (error) {
-      set((state) => ({
-        errors: { ...state.errors, relationships: error instanceof Error ? error.message : 'Failed to fetch relationships' }
-      }));
-    } finally {
-      set((state) => ({ loading: { ...state.loading, relationships: false } }));
-    }
-  },
-
-  createRelationship: async (data) => {
-    const result = await get().apiRequest('/ci/relationships', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    set((state) => ({ relationships: [...state.relationships, result] }));
-    return result;
-  },
-
-  updateRelationship: async (id, data) => {
-    const result = await get().apiRequest(`/ci/relationships/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-    set((state) => ({
-      relationships: state.relationships.map((rel) => rel.id === id ? result : rel)
-    }));
-    return result;
-  },
-
-  deleteRelationship: async (id) => {
-    await get().apiRequest(`/ci/relationships/${id}`, { method: 'DELETE' });
-    set((state) => ({
-      relationships: state.relationships.filter((rel) => rel.id !== id)
-    }));
-  },
-
   // Filters
   setFilters: (filters) => {
     set((state) => ({ filters: { ...state.filters, ...filters } }));
@@ -297,7 +243,6 @@ export const useCIStore = create<CIStore>((set, get) => ({
       lifecycles: [],
       assets: [],
       relationshipTypes: [],
-      relationships: [],
       filters: {},
       errors: {},
     });

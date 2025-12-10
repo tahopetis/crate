@@ -181,7 +181,7 @@ SERVER_PORT=8080
 ### Frontend Environment (.env.local)
 ```env
 # API
-NEXT_PUBLIC_API_URL=http://localhost:8080/api
+NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
 
 # Features
 NEXT_PUBLIC_ENABLE_GRAPH_VIZ=true

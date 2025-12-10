@@ -143,7 +143,7 @@ docker-compose logs -f [service-name]
 - Auto-handles JWT token from localStorage (`auth-storage` key)
 - Auto-redirects to `/auth/login` on 401 responses
 - Predefined endpoints in `apiEndpoints` object
-- Base URL: `NEXT_PUBLIC_API_URL` env var (defaults to `http://localhost:3000`)
+- Base URL: `NEXT_PUBLIC_API_URL` env var (defaults to `http://localhost:3000/api/v1`)
 
 **Component Structure**:
 - `components/ui/` - shadcn/ui components (button, dialog, form, etc.)

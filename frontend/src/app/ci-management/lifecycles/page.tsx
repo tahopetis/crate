@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
 import { Plus, MoreHorizontal, Edit, Trash2, Settings, Eye } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 import {
   LifecycleType,
   LifecycleTypeResponse,
@@ -97,15 +98,12 @@ export default function LifecycleManagementPage() {
   const fetchLifecycles = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/v1/lifecycle-types');
-      if (!response.ok) throw new Error('Failed to fetch lifecycles');
-
-      const result = await response.json();
+      const result = await apiClient.get('/lifecycle-types');
       setLifecycles(result.data || []);
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to load lifecycles',
+        description: error instanceof Error ? error.message : 'Failed to load lifecycles',
         variant: 'destructive',
       });
     } finally {
@@ -116,10 +114,7 @@ export default function LifecycleManagementPage() {
   // Fetch lifecycle details with states
   const fetchLifecycleDetails = async (id: string) => {
     try {
-      const response = await fetch(`/api/v1/lifecycle-types/${id}`);
-      if (!response.ok) throw new Error('Failed to fetch lifecycle details');
-
-      const result = await response.json();
+      const result = await apiClient.get(`/lifecycle-types/${id}`);
       setSelectedLifecycle(result);
       setStates(result.states || []);
       setStatesForm(prev => ({ ...prev, lifecycle_type_id: id }));
@@ -136,14 +131,7 @@ export default function LifecycleManagementPage() {
   const handleCreateLifecycle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/v1/lifecycle-types', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error('Failed to create lifecycle');
-
+      await apiClient.post('/lifecycle-types', formData);
       setIsCreateDialogOpen(false);
       setFormData({ name: '', description: '', default_color: '#3B82F6' });
       fetchLifecycles();
@@ -155,7 +143,7 @@ export default function LifecycleManagementPage() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create lifecycle',
+        description: error instanceof Error ? error.message : 'Failed to create lifecycle',
         variant: 'destructive',
       });
     }
@@ -173,14 +161,7 @@ export default function LifecycleManagementPage() {
         default_color: formData.default_color !== selectedLifecycle.default_color ? formData.default_color : undefined,
       };
 
-      const response = await fetch(`/api/v1/lifecycle-types/${selectedLifecycle.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) throw new Error('Failed to update lifecycle');
-
+      await apiClient.put(`/lifecycle-types/${selectedLifecycle.id}`, updateData);
       setIsEditDialogOpen(false);
       fetchLifecycles();
 
@@ -191,7 +172,7 @@ export default function LifecycleManagementPage() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to update lifecycle',
+        description: error instanceof Error ? error.message : 'Failed to update lifecycle',
         variant: 'destructive',
       });
     }
@@ -204,12 +185,7 @@ export default function LifecycleManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/lifecycle-types/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete lifecycle');
-
+      await apiClient.delete(`/lifecycle-types/${id}`);
       fetchLifecycles();
 
       toast({
@@ -219,7 +195,7 @@ export default function LifecycleManagementPage() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete lifecycle',
+        description: error instanceof Error ? error.message : 'Failed to delete lifecycle',
         variant: 'destructive',
       });
     }
@@ -229,13 +205,7 @@ export default function LifecycleManagementPage() {
   const handleCreateState = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/v1/lifecycle-states', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(statesForm),
-      });
-
-      if (!response.ok) throw new Error('Failed to create lifecycle state');
+      await apiClient.post('/lifecycle-states', statesForm);
 
       setStatesForm({
         ...statesForm,
@@ -256,7 +226,7 @@ export default function LifecycleManagementPage() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create lifecycle state',
+        description: error instanceof Error ? error.message : 'Failed to create lifecycle state',
         variant: 'destructive',
       });
     }
@@ -269,11 +239,7 @@ export default function LifecycleManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/lifecycle-states/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete lifecycle state');
+      await apiClient.delete(`/lifecycle-states/${id}`);
 
       if (selectedLifecycle) {
         fetchLifecycleDetails(selectedLifecycle.id);
@@ -286,7 +252,7 @@ export default function LifecycleManagementPage() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete lifecycle state',
+        description: error instanceof Error ? error.message : 'Failed to delete lifecycle state',
         variant: 'destructive',
       });
     }
