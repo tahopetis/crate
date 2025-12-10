@@ -1,7 +1,7 @@
 import { ApiResponse, PaginatedResponse } from '@/lib/types';
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 // API Client class
 class ApiClient {

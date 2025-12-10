@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Search, Plus, Edit, Trash2, Filter, Calendar, Building } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiClient } from '@/lib/api';
 import type {
   CIAssetResponse,
   CreateCIAssetRequest,
@@ -95,17 +96,11 @@ export default function CIAssetsPage() {
       if (filters.limit) params.append('limit', filters.limit.toString());
       if (filters.offset) params.append('offset', filters.offset.toString());
 
-      const response = await fetch(`/api/v1/ci-assets?${params}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setAssets(data.data || []);
-      } else {
-        toast.error('Failed to fetch CI assets');
-      }
+      const data = await apiClient.get(`/ci-assets?${params}`);
+      setAssets(data.data || []);
     } catch (error) {
       console.error('Error fetching CI assets:', error);
-      toast.error('Error loading CI assets');
+      toast.error(error instanceof Error ? error.message : 'Error loading CI assets');
     } finally {
       setLoading(false);
     }
@@ -113,14 +108,11 @@ export default function CIAssetsPage() {
 
   const fetchCITypes = async () => {
     try {
-      const response = await fetch('/api/v1/ci-types?limit=100');
-      const data = await response.json();
-
-      if (data.success) {
-        setCiTypes(data.data || []);
-      }
+      const data = await apiClient.get('/ci-types?limit=100');
+      setCiTypes(data.data || []);
     } catch (error) {
       console.error('Error fetching CI types:', error);
+      toast.error(error instanceof Error ? error.message : 'Error loading CI types');
     }
   };
 
@@ -213,50 +205,24 @@ export default function CIAssetsPage() {
           attributes: formData.attributes,
         };
 
-        const response = await fetch(`/api/v1/ci-assets/${editingAsset.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updateData),
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          toast.success('CI asset updated successfully');
-          setIsDialogOpen(false);
-          setEditingAsset(null);
-          fetchAssets();
-          resetForm();
-        } else {
-          toast.error(result.message || 'Failed to update CI asset');
-        }
+        await apiClient.put(`/ci-assets/${editingAsset.id}`, updateData);
+        toast.success('CI asset updated successfully');
+        setIsDialogOpen(false);
+        setEditingAsset(null);
+        fetchAssets();
+        resetForm();
       } else {
         // Create new asset
         setIsCreating(true);
-        const response = await fetch('/api/v1/ci-assets', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          toast.success('CI asset created successfully');
-          setIsDialogOpen(false);
-          fetchAssets();
-          resetForm();
-        } else {
-          toast.error(result.message || 'Failed to create CI asset');
-        }
+        await apiClient.post('/ci-assets', formData);
+        toast.success('CI asset created successfully');
+        setIsDialogOpen(false);
+        fetchAssets();
+        resetForm();
       }
     } catch (error) {
       console.error('Error saving CI asset:', error);
-      toast.error('Error saving CI asset');
+      toast.error(error instanceof Error ? error.message : 'Error saving CI asset');
     } finally {
       setIsCreating(false);
       setIsUpdating(false);
@@ -287,21 +253,12 @@ export default function CIAssetsPage() {
 
     try {
       setIsDeleting(id);
-      const response = await fetch(`/api/v1/ci-assets/${id}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success('CI asset deleted successfully');
-        fetchAssets();
-      } else {
-        toast.error(result.message || 'Failed to delete CI asset');
-      }
+      await apiClient.delete(`/ci-assets/${id}`);
+      toast.success('CI asset deleted successfully');
+      fetchAssets();
     } catch (error) {
       console.error('Error deleting CI asset:', error);
-      toast.error('Error deleting CI asset');
+      toast.error(error instanceof Error ? error.message : 'Error deleting CI asset');
     } finally {
       setIsDeleting(null);
     }

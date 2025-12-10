@@ -25,9 +25,6 @@ interface CIStore {
     relationships?: string;
   };
 
-  // API helper
-  apiRequest: (endpoint: string, options?: RequestInit) => Promise<any>;
-
   // CI Types
   fetchCITypes: () => Promise<void>;
   createCIType: (data: Partial<CIType>) => Promise<CIType>;
@@ -84,34 +81,11 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
   errors: {},
 
-  // API helper function
-  apiRequest: async (endpoint: string, options?: RequestInit) => {
-    const token = localStorage.getItem('auth-storage')
-      ? JSON.parse(localStorage.getItem('auth-storage')!).state.token
-      : null;
-
-    const response = await fetch(`/api${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'Request failed');
-    }
-
-    return response.json();
-  },
-
   // CI Types
   fetchCITypes: async () => {
     set((state) => ({ loading: { ...state.loading, ciTypes: true } }));
     try {
-      const data = await apiClient.get('/ci/types') as CIType[];
+      const data = await apiClient.get('/ci-types') as CIType[];
       set({ ciTypes: data });
     } catch (error) {
       set((state) => ({
@@ -123,19 +97,13 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   createCIType: async (data) => {
-    const result = await get().apiRequest('/ci/types', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.post('/ci-types', data);
     set((state) => ({ ciTypes: [...state.ciTypes, result] }));
     return result;
   },
 
   updateCIType: async (id, data) => {
-    const result = await get().apiRequest(`/ci/types/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.put(`/ci-types/${id}`, data);
     set((state) => ({
       ciTypes: state.ciTypes.map((type) => type.id === id ? result : type)
     }));
@@ -143,7 +111,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   deleteCIType: async (id) => {
-    await get().apiRequest(`/ci/types/${id}`, { method: 'DELETE' });
+    await apiClient.delete(`/ci-types/${id}`);
     set((state) => ({
       ciTypes: state.ciTypes.filter((type) => type.id !== id)
     }));
@@ -153,7 +121,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   fetchLifecycles: async () => {
     set((state) => ({ loading: { ...state.loading, lifecycles: true } }));
     try {
-      const data = await get().apiRequest('/ci/lifecycles');
+      const data = await apiClient.get('/lifecycle-types');
       set({ lifecycles: data });
     } catch (error) {
       set((state) => ({
@@ -165,19 +133,13 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   createLifecycle: async (data) => {
-    const result = await get().apiRequest('/ci/lifecycles', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.post('/lifecycle-types', data);
     set((state) => ({ lifecycles: [...state.lifecycles, result] }));
     return result;
   },
 
   updateLifecycle: async (id, data) => {
-    const result = await get().apiRequest(`/ci/lifecycles/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.put(`/lifecycle-types/${id}`, data);
     set((state) => ({
       lifecycles: state.lifecycles.map((lifecycle) => lifecycle.id === id ? result : lifecycle)
     }));
@@ -185,7 +147,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   deleteLifecycle: async (id) => {
-    await get().apiRequest(`/ci/lifecycles/${id}`, { method: 'DELETE' });
+    await apiClient.delete(`/lifecycle-types/${id}`);
     set((state) => ({
       lifecycles: state.lifecycles.filter((lifecycle) => lifecycle.id !== id)
     }));
@@ -203,8 +165,8 @@ export const useCIStore = create<CIStore>((set, get) => ({
           }
         });
       }
-      const endpoint = `/ci/assets${params.toString() ? `?${params.toString()}` : ''}`;
-      const data = await get().apiRequest(endpoint);
+      const endpoint = `/ci-assets${params.toString() ? `?${params.toString()}` : ''}`;
+      const data = await apiClient.get(endpoint);
       set({ assets: data.data || data }); // Handle both paginated and non-paginated responses
     } catch (error) {
       set((state) => ({
@@ -216,19 +178,13 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   createAsset: async (data) => {
-    const result = await get().apiRequest('/ci/assets', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.post('/ci-assets', data);
     set((state) => ({ assets: [...state.assets, result] }));
     return result;
   },
 
   updateAsset: async (id, data) => {
-    const result = await get().apiRequest(`/ci/assets/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.put(`/ci-assets/${id}`, data);
     set((state) => ({
       assets: state.assets.map((asset) => asset.id === id ? result : asset)
     }));
@@ -236,7 +192,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   deleteAsset: async (id) => {
-    await get().apiRequest(`/ci/assets/${id}`, { method: 'DELETE' });
+    await apiClient.delete(`/ci-assets/${id}`);
     set((state) => ({
       assets: state.assets.filter((asset) => asset.id !== id)
     }));
@@ -250,7 +206,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   fetchRelationshipTypes: async () => {
     set((state) => ({ loading: { ...state.loading, relationshipTypes: true } }));
     try {
-      const data = await get().apiRequest('/ci/relationship-types');
+      const data = await apiClient.get('/relationship-types');
       set({ relationshipTypes: data });
     } catch (error) {
       set((state) => ({
@@ -262,19 +218,13 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   createRelationshipType: async (data) => {
-    const result = await get().apiRequest('/ci/relationship-types', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.post('/relationship-types', data);
     set((state) => ({ relationshipTypes: [...state.relationshipTypes, result] }));
     return result;
   },
 
   updateRelationshipType: async (id, data) => {
-    const result = await get().apiRequest(`/ci/relationship-types/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    const result = await apiClient.put(`/relationship-types/${id}`, data);
     set((state) => ({
       relationshipTypes: state.relationshipTypes.map((type) => type.id === id ? result : type)
     }));
@@ -282,7 +232,7 @@ export const useCIStore = create<CIStore>((set, get) => ({
   },
 
   deleteRelationshipType: async (id) => {
-    await get().apiRequest(`/ci/relationship-types/${id}`, { method: 'DELETE' });
+    await apiClient.delete(`/relationship-types/${id}`);
     set((state) => ({
       relationshipTypes: state.relationshipTypes.filter((type) => type.id !== id)
     }));
