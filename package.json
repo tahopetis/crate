@@ -1,0 +1,26 @@
+{
+  "name": "crate",
+  "version": "1.0.0",
+  "description": "A next-generation, graph-enabled IT Asset Management Platform designed to evolve into a full Enterprise Architecture tool.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tahopetis/crate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tahopetis/crate/issues"
+  },
+  "homepage": "https://github.com/tahopetis/crate#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^25.0.0"
+  }
+}
