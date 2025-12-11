@@ -1,6 +1,7 @@
 use crate::services::RelationshipService;
 use crate::models::{
-    CreateRelationshipTypeRequest, UpdateRelationshipTypeRequest, RelationshipTypeFilter
+    CreateRelationshipTypeRequest, UpdateRelationshipTypeRequest, RelationshipTypeFilter,
+    CreateRelationshipRequest, UpdateRelationshipRequest, RelationshipFilter
 };
 use crate::middleware::AuthContext;
 use crate::error::ApiResponse;
@@ -8,7 +9,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use serde::Deserialize;
@@ -16,8 +17,12 @@ use uuid::Uuid;
 
 pub fn relationship_routes() -> Router<crate::AppState> {
     Router::new()
+        // Relationship Types (existing)
         .route("/relationship-types", get(list_relationship_types).post(create_relationship_type))
         .route("/relationship-types/:id", get(get_relationship_type).put(update_relationship_type).delete(delete_relationship_type))
+        // Relationship Instances (Phase 3.1)
+        .route("/relationships", get(list_relationships).post(create_relationship))
+        .route("/relationships/:id", get(get_relationship).put(update_relationship).delete(delete_relationship))
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,6 +166,178 @@ pub async fn delete_relationship_type(
             success: true,
             data: None,
             message: Some("Relationship type deleted successfully".to_string()),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+        Err(e) => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: Some(format!("Error: {}", e)),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+    }
+}
+
+// === Relationship Instance Handlers (Phase 3.1) ===
+
+#[derive(Debug, Deserialize)]
+pub struct ListRelationshipsQuery {
+    pub relationship_type_id: Option<String>,
+    pub ci_asset_id: Option<String>,
+    pub from_ci_asset_id: Option<String>,
+    pub to_ci_asset_id: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+/// List relationships with optional filtering
+pub async fn list_relationships(
+    State(app_state): State<crate::AppState>,
+    _auth: AuthContext,
+    Query(query): Query<ListRelationshipsQuery>,
+) -> Result<Json<ApiResponse<Vec<crate::models::RelationshipResponse>>>, StatusCode> {
+    let filter = RelationshipFilter {
+        relationship_type_id: query.relationship_type_id.and_then(|s| s.parse().ok()),
+        ci_asset_id: query.ci_asset_id.and_then(|s| s.parse().ok()),
+        from_ci_asset_id: query.from_ci_asset_id.and_then(|s| s.parse().ok()),
+        to_ci_asset_id: query.to_ci_asset_id.and_then(|s| s.parse().ok()),
+        limit: query.limit,
+        offset: query.offset,
+    };
+
+    let relationship_service = RelationshipService::new(
+        app_state.database.relationship_repository.clone(),
+        app_state.database.ci_repository.clone(),
+        app_state.database.graph_repository.clone(),
+    );
+
+    match relationship_service.list_relationship_instances(filter).await {
+        Ok(relationships) => Ok(Json(ApiResponse {
+            success: true,
+            data: Some(relationships),
+            message: None,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+        Err(e) => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: Some(format!("Error: {}", e)),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+    }
+}
+
+/// Create a new relationship instance
+pub async fn create_relationship(
+    State(app_state): State<crate::AppState>,
+    auth: AuthContext,
+    Json(request): Json<CreateRelationshipRequest>,
+) -> Result<Json<ApiResponse<crate::models::RelationshipWithDetails>>, StatusCode> {
+    let relationship_service = RelationshipService::new(
+        app_state.database.relationship_repository.clone(),
+        app_state.database.ci_repository.clone(),
+        app_state.database.graph_repository.clone(),
+    );
+
+    match relationship_service.create_relationship_instance(request, auth.user_id).await {
+        Ok(relationship) => Ok(Json(ApiResponse {
+            success: true,
+            data: Some(relationship),
+            message: Some("Relationship created successfully".to_string()),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+        Err(e) => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: Some(format!("Error: {}", e)),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+    }
+}
+
+/// Get a relationship by ID
+pub async fn get_relationship(
+    State(app_state): State<crate::AppState>,
+    _auth: AuthContext,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<Option<crate::models::RelationshipWithDetails>>>, StatusCode> {
+    let relationship_service = RelationshipService::new(
+        app_state.database.relationship_repository.clone(),
+        app_state.database.ci_repository.clone(),
+        app_state.database.graph_repository.clone(),
+    );
+
+    match relationship_service.get_relationship_instance(id).await {
+        Ok(relationship) => {
+            if relationship.is_none() {
+                return Ok(Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: Some("Relationship not found".to_string()),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                }));
+            }
+            Ok(Json(ApiResponse {
+                success: true,
+                data: Some(relationship),
+                message: None,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            }))
+        }
+        Err(e) => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: Some(format!("Error: {}", e)),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+    }
+}
+
+/// Update a relationship
+pub async fn update_relationship(
+    State(app_state): State<crate::AppState>,
+    _auth: AuthContext,
+    Path(id): Path<Uuid>,
+    Json(request): Json<UpdateRelationshipRequest>,
+) -> Result<Json<ApiResponse<crate::models::RelationshipWithDetails>>, StatusCode> {
+    let relationship_service = RelationshipService::new(
+        app_state.database.relationship_repository.clone(),
+        app_state.database.ci_repository.clone(),
+        app_state.database.graph_repository.clone(),
+    );
+
+    match relationship_service.update_relationship_instance(id, request).await {
+        Ok(relationship) => Ok(Json(ApiResponse {
+            success: true,
+            data: Some(relationship),
+            message: Some("Relationship updated successfully".to_string()),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+        Err(e) => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: Some(format!("Error: {}", e)),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })),
+    }
+}
+
+/// Delete a relationship
+pub async fn delete_relationship(
+    State(app_state): State<crate::AppState>,
+    _auth: AuthContext,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<Option<()>>>, StatusCode> {
+    let relationship_service = RelationshipService::new(
+        app_state.database.relationship_repository.clone(),
+        app_state.database.ci_repository.clone(),
+        app_state.database.graph_repository.clone(),
+    );
+
+    match relationship_service.delete_relationship_instance(id).await {
+        Ok(()) => Ok(Json(ApiResponse {
+            success: true,
+            data: None,
+            message: Some("Relationship deleted successfully".to_string()),
             timestamp: chrono::Utc::now().to_rfc3339(),
         })),
         Err(e) => Ok(Json(ApiResponse {

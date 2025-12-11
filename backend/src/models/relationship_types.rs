@@ -107,3 +107,78 @@ pub struct RelationshipTypeSummary {
     pub to_ci_type_name: Option<String>,
     pub relationship_count: i64,
 }
+
+// Relationship Instance Models (Phase 3.1)
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Relationship {
+    pub id: Uuid,
+    pub relationship_type_id: Uuid,
+    pub from_ci_asset_id: Uuid,
+    pub to_ci_asset_id: Uuid,
+    pub attributes: Value,
+    pub created_by: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationshipWithDetails {
+    pub id: Uuid,
+    pub relationship_type_id: Uuid,
+    pub relationship_type_name: String,
+    pub is_bidirectional: bool,
+    pub from_ci_asset_id: Uuid,
+    pub from_ci_asset_name: String,
+    pub from_ci_type_name: String,
+    pub to_ci_asset_id: Uuid,
+    pub to_ci_asset_name: String,
+    pub to_ci_type_name: String,
+    pub attributes: Value,
+    pub created_by: Uuid,
+    pub created_by_name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateRelationshipRequest {
+    pub relationship_type_id: Uuid,
+    pub from_ci_asset_id: Uuid,
+    pub to_ci_asset_id: Uuid,
+    pub attributes: Option<Value>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdateRelationshipRequest {
+    pub attributes: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RelationshipFilter {
+    pub relationship_type_id: Option<Uuid>,
+    pub ci_asset_id: Option<Uuid>, // Find all relationships for this asset (from or to)
+    pub from_ci_asset_id: Option<Uuid>,
+    pub to_ci_asset_id: Option<Uuid>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationshipResponse {
+    pub id: Uuid,
+    pub relationship_type_id: Uuid,
+    pub relationship_type_name: String,
+    pub is_bidirectional: bool,
+    pub from_ci_asset_id: Uuid,
+    pub from_ci_asset_name: String,
+    pub from_ci_type_name: String,
+    pub to_ci_asset_id: Uuid,
+    pub to_ci_asset_name: String,
+    pub to_ci_type_name: String,
+    pub attributes: Value,
+    pub created_by: Uuid,
+    pub created_by_name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}

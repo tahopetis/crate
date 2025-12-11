@@ -2,7 +2,9 @@ use anyhow::Result;
 use crate::models::{
     RelationshipType, CreateRelationshipTypeRequest,
     UpdateRelationshipTypeRequest, RelationshipTypeFilter, RelationshipTypeResponse,
-    RelationshipTypeSummary
+    RelationshipTypeSummary,
+    Relationship, CreateRelationshipRequest, UpdateRelationshipRequest,
+    RelationshipFilter, RelationshipResponse, RelationshipWithDetails
 };
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
@@ -283,6 +285,268 @@ impl RelationshipRepository {
             .fetch_one(&self.pool)
             .await?
         };
+
+        Ok(count > 0)
+    }
+
+    // === Relationship Instance Methods (Phase 3.1) ===
+
+    /// Create a new relationship instance between two CI assets
+    pub async fn create_relationship(
+        &self,
+        request: &CreateRelationshipRequest,
+        created_by: Uuid,
+    ) -> Result<Relationship> {
+        let attributes = request.attributes.clone().unwrap_or_default();
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO relationships (
+                relationship_type_id, from_ci_asset_id, to_ci_asset_id, attributes, created_by
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, relationship_type_id, from_ci_asset_id, to_ci_asset_id,
+                     attributes, created_by, created_at, updated_at
+            "#
+        )
+        .bind(request.relationship_type_id)
+        .bind(request.from_ci_asset_id)
+        .bind(request.to_ci_asset_id)
+        .bind(attributes)
+        .bind(created_by)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Relationship {
+            id: row.get("id"),
+            relationship_type_id: row.get("relationship_type_id"),
+            from_ci_asset_id: row.get("from_ci_asset_id"),
+            to_ci_asset_id: row.get("to_ci_asset_id"),
+            attributes: row.get("attributes"),
+            created_by: row.get("created_by"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    /// Get a relationship by ID with full details
+    pub async fn get_relationship_by_id(&self, id: Uuid) -> Result<Option<RelationshipWithDetails>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                r.id, r.relationship_type_id, r.from_ci_asset_id, r.to_ci_asset_id,
+                r.attributes, r.created_by, r.created_at, r.updated_at,
+                rt.name as relationship_type_name, rt.is_bidirectional,
+                from_asset.name as from_ci_asset_name,
+                to_asset.name as to_ci_asset_name,
+                from_type.name as from_ci_type_name,
+                to_type.name as to_ci_type_name,
+                u.first_name || ' ' || u.last_name as created_by_name
+            FROM relationships r
+            JOIN relationship_types rt ON r.relationship_type_id = rt.id
+            JOIN ci_assets from_asset ON r.from_ci_asset_id = from_asset.id
+            JOIN ci_assets to_asset ON r.to_ci_asset_id = to_asset.id
+            JOIN ci_types from_type ON from_asset.ci_type_id = from_type.id
+            JOIN ci_types to_type ON to_asset.ci_type_id = to_type.id
+            JOIN users u ON r.created_by = u.id
+            WHERE r.id = $1 AND r.deleted_at IS NULL
+            "#
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(Some(RelationshipWithDetails {
+                id: row.get("id"),
+                relationship_type_id: row.get("relationship_type_id"),
+                relationship_type_name: row.get("relationship_type_name"),
+                is_bidirectional: row.get("is_bidirectional"),
+                from_ci_asset_id: row.get("from_ci_asset_id"),
+                from_ci_asset_name: row.get("from_ci_asset_name"),
+                from_ci_type_name: row.get("from_ci_type_name"),
+                to_ci_asset_id: row.get("to_ci_asset_id"),
+                to_ci_asset_name: row.get("to_ci_asset_name"),
+                to_ci_type_name: row.get("to_ci_type_name"),
+                attributes: row.get("attributes"),
+                created_by: row.get("created_by"),
+                created_by_name: row.get("created_by_name"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List relationships with optional filtering
+    pub async fn list_relationships(&self, filter: &RelationshipFilter) -> Result<Vec<RelationshipResponse>> {
+        let limit = filter.limit.unwrap_or(100);
+        let offset = filter.offset.unwrap_or(0);
+
+        let mut where_clauses = vec!["r.deleted_at IS NULL"];
+        let mut param_count = 0;
+
+        if filter.relationship_type_id.is_some() {
+            param_count += 1;
+            where_clauses.push(&format!("r.relationship_type_id = ${}", param_count));
+        }
+
+        if filter.from_ci_asset_id.is_some() {
+            param_count += 1;
+            where_clauses.push(&format!("r.from_ci_asset_id = ${}", param_count));
+        }
+
+        if filter.to_ci_asset_id.is_some() {
+            param_count += 1;
+            where_clauses.push(&format!("r.to_ci_asset_id = ${}", param_count));
+        }
+
+        if filter.ci_asset_id.is_some() {
+            param_count += 1;
+            where_clauses.push(&format!("(r.from_ci_asset_id = ${} OR r.to_ci_asset_id = ${})", param_count, param_count));
+        }
+
+        let where_clause = where_clauses.join(" AND ");
+
+        let query = format!(
+            r#"
+            SELECT
+                r.id, r.relationship_type_id, r.from_ci_asset_id, r.to_ci_asset_id,
+                r.attributes, r.created_by, r.created_at, r.updated_at,
+                rt.name as relationship_type_name, rt.is_bidirectional,
+                from_asset.name as from_ci_asset_name,
+                to_asset.name as to_ci_asset_name,
+                from_type.name as from_ci_type_name,
+                to_type.name as to_ci_type_name,
+                u.first_name || ' ' || u.last_name as created_by_name
+            FROM relationships r
+            JOIN relationship_types rt ON r.relationship_type_id = rt.id
+            JOIN ci_assets from_asset ON r.from_ci_asset_id = from_asset.id
+            JOIN ci_assets to_asset ON r.to_ci_asset_id = to_asset.id
+            JOIN ci_types from_type ON from_asset.ci_type_id = from_type.id
+            JOIN ci_types to_type ON to_asset.ci_type_id = to_type.id
+            JOIN users u ON r.created_by = u.id
+            WHERE {}
+            ORDER BY r.created_at DESC
+            LIMIT {} OFFSET {}
+            "#,
+            where_clause, limit, offset
+        );
+
+        let mut query_builder = sqlx::query(&query);
+
+        if let Some(type_id) = filter.relationship_type_id {
+            query_builder = query_builder.bind(type_id);
+        }
+        if let Some(from_id) = filter.from_ci_asset_id {
+            query_builder = query_builder.bind(from_id);
+        }
+        if let Some(to_id) = filter.to_ci_asset_id {
+            query_builder = query_builder.bind(to_id);
+        }
+        if let Some(asset_id) = filter.ci_asset_id {
+            query_builder = query_builder.bind(asset_id);
+        }
+
+        let rows = query_builder
+            .fetch_all(&self.pool)
+            .await?;
+
+        let relationships = rows.into_iter().map(|row| {
+            RelationshipResponse {
+                id: row.get("id"),
+                relationship_type_id: row.get("relationship_type_id"),
+                relationship_type_name: row.get("relationship_type_name"),
+                is_bidirectional: row.get("is_bidirectional"),
+                from_ci_asset_id: row.get("from_ci_asset_id"),
+                from_ci_asset_name: row.get("from_ci_asset_name"),
+                from_ci_type_name: row.get("from_ci_type_name"),
+                to_ci_asset_id: row.get("to_ci_asset_id"),
+                to_ci_asset_name: row.get("to_ci_asset_name"),
+                to_ci_type_name: row.get("to_ci_type_name"),
+                attributes: row.get("attributes"),
+                created_by: row.get("created_by"),
+                created_by_name: row.get("created_by_name"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            }
+        }).collect();
+
+        Ok(relationships)
+    }
+
+    /// Update a relationship's attributes
+    pub async fn update_relationship(
+        &self,
+        id: Uuid,
+        request: &UpdateRelationshipRequest,
+    ) -> Result<Relationship> {
+        let attributes = request.attributes.clone().unwrap_or_default();
+
+        let row = sqlx::query(
+            r#"
+            UPDATE relationships
+            SET attributes = $1, updated_at = NOW()
+            WHERE id = $2 AND deleted_at IS NULL
+            RETURNING id, relationship_type_id, from_ci_asset_id, to_ci_asset_id,
+                     attributes, created_by, created_at, updated_at
+            "#
+        )
+        .bind(attributes)
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Relationship {
+            id: row.get("id"),
+            relationship_type_id: row.get("relationship_type_id"),
+            from_ci_asset_id: row.get("from_ci_asset_id"),
+            to_ci_asset_id: row.get("to_ci_asset_id"),
+            attributes: row.get("attributes"),
+            created_by: row.get("created_by"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    /// Delete a relationship (soft delete)
+    pub async fn delete_relationship(&self, id: Uuid) -> Result<()> {
+        let result = sqlx::query(
+            "UPDATE relationships SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL"
+        )
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(anyhow::anyhow!("Relationship not found"));
+        }
+
+        Ok(())
+    }
+
+    /// Check if a relationship already exists between two assets
+    pub async fn relationship_exists(
+        &self,
+        relationship_type_id: Uuid,
+        from_asset_id: Uuid,
+        to_asset_id: Uuid,
+    ) -> Result<bool> {
+        let count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM relationships
+            WHERE relationship_type_id = $1
+              AND from_ci_asset_id = $2
+              AND to_ci_asset_id = $3
+              AND deleted_at IS NULL
+            "#
+        )
+        .bind(relationship_type_id)
+        .bind(from_asset_id)
+        .bind(to_asset_id)
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(count > 0)
     }

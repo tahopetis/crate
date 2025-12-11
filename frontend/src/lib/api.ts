@@ -172,16 +172,16 @@ export const apiEndpoints = {
     lifecycles: '/lifecycle-types',
     assets: '/ci-assets',
     relationshipTypes: '/relationship-types',
-    // relationships: '/relationships', // TODO: Phase 3.1 - Not implemented yet (only relationship types exist)
+    relationships: '/relationships', // Phase 3.1 - Implemented!
     import: '/import/ci-assets',
     export: '/export/ci-assets',
   },
 
-  // Graph
+  // Graph (Phase 3.2)
   graph: {
-    data: '/graph/data',
-    // layout: '/graph/layout', // TODO: Not implemented in backend
-    search: '/graph/search',
+    data: '/graph/data',              // GET - Get nodes and edges
+    neighbors: '/graph/nodes',         // GET /:id/neighbors - Get node neighbors
+    search: '/graph/search',           // GET ?q=term - Search nodes
   },
 
   // Audit

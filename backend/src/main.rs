@@ -137,12 +137,19 @@ fn create_app(app_state: AppState) -> Router {
         .route("/ci-type-lifecycles", post(create_ci_type_lifecycle_mapping))
         .route("/ci-types/:id/lifecycles", get(get_lifecycles_for_ci_type))
 
-        // Relationship Management
+        // Relationship Types Management
         .route("/relationship-types", post(create_relationship_type))
         .route("/relationship-types", get(list_relationship_types))
         .route("/relationship-types/:id", get(get_relationship_type))
         .route("/relationship-types/:id", put(update_relationship_type))
         .route("/relationship-types/:id", delete(delete_relationship_type))
+
+        // Relationship Instances Management (Phase 3.1)
+        .route("/relationships", post(relationship::create_relationship))
+        .route("/relationships", get(relationship::list_relationships))
+        .route("/relationships/:id", get(relationship::get_relationship))
+        .route("/relationships/:id", put(relationship::update_relationship))
+        .route("/relationships/:id", delete(relationship::delete_relationship))
         .layer(middleware::from_fn_with_state(
             app_state.config.auth.jwt_secret.clone(),
             auth_middleware,

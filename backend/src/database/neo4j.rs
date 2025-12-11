@@ -1,33 +1,71 @@
 use crate::config::Neo4jConfig;
-use anyhow::Result;
+use anyhow::{Result, Context};
+use neo4rs::{Graph, ConfigBuilder};
 
 #[derive(Debug, Clone)]
 pub struct Neo4jPool {
-    config: Neo4jConfig,
+    graph: Graph,
 }
 
 impl Neo4jPool {
-    pub fn config(&self) -> &Neo4jConfig {
-        &self.config
+    pub fn graph(&self) -> &Graph {
+        &self.graph
     }
 }
 
 pub async fn get_neo4j_pool(config: &Neo4jConfig) -> Result<Neo4jPool> {
-    // Simplified implementation for now
-    // Full Neo4j integration will be implemented when neo4rs API is stabilized
-    println!("Initializing Neo4j pool with URI: {}", config.uri);
+    tracing::info!("Initializing Neo4j connection pool with URI: {}", config.uri);
 
-    let pool = Neo4jPool {
-        config: config.clone(),
-    };
+    let neo4j_config = ConfigBuilder::default()
+        .uri(&config.uri)
+        .user(&config.user)
+        .password(&config.password)
+        .db(&config.database)
+        .fetch_size(500)
+        .max_connections(10)
+        .build()
+        .context("Failed to build Neo4j configuration")?;
 
-    Ok(pool)
+    let graph = Graph::connect(neo4j_config)
+        .await
+        .context("Failed to connect to Neo4j database")?;
+
+    tracing::info!("Successfully connected to Neo4j database");
+
+    Ok(Neo4jPool { graph })
 }
 
-pub async fn run_initializations(_pool: &Neo4jPool) -> Result<()> {
-    // TODO: Implement Neo4j constraints and initializations
-    // For now, just log that initialization was requested
-    println!("Running Neo4j initializations...");
+pub async fn run_initializations(pool: &Neo4jPool) -> Result<()> {
+    tracing::info!("Running Neo4j initializations...");
+
+    let graph = pool.graph();
+
+    // Create constraints for uniqueness
+    let constraints = vec![
+        "CREATE CONSTRAINT ci_asset_id_unique IF NOT EXISTS FOR (a:CIAsset) REQUIRE a.id IS UNIQUE",
+        "CREATE CONSTRAINT ci_type_name_unique IF NOT EXISTS FOR (t:CIType) REQUIRE t.name IS UNIQUE",
+        "CREATE CONSTRAINT user_email_unique IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE",
+    ];
+
+    for constraint in constraints {
+        graph.run(neo4rs::query(constraint)).await
+            .context(format!("Failed to create constraint: {}", constraint))?;
+    }
+
+    // Create indexes for performance
+    let indexes = vec![
+        "CREATE INDEX ci_asset_name_index IF NOT EXISTS FOR (a:CIAsset) ON (a.name)",
+        "CREATE INDEX ci_asset_type_index IF NOT EXISTS FOR (a:CIAsset) ON (a.type)",
+        "CREATE INDEX ci_type_name_index IF NOT EXISTS FOR (t:CIType) ON (t.name)",
+        "CREATE INDEX user_email_index IF NOT EXISTS FOR (u:User) ON (u.email)",
+    ];
+
+    for index in indexes {
+        graph.run(neo4rs::query(index)).await
+            .context(format!("Failed to create index: {}", index))?;
+    }
+
+    tracing::info!("Successfully completed Neo4j initializations");
     Ok(())
 }
 

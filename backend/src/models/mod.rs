@@ -19,7 +19,9 @@ pub use ci_assets::{CIAsset, CreateCIAssetRequest, UpdateCIAssetRequest, CIAsset
 pub use relationship_types::{
     RelationshipType, RelationshipTypeWithDetails, CreateRelationshipTypeRequest,
     UpdateRelationshipTypeRequest, RelationshipTypeFilter, RelationshipTypeResponse,
-    RelationshipTypeSummary
+    RelationshipTypeSummary,
+    Relationship, RelationshipWithDetails, CreateRelationshipRequest,
+    UpdateRelationshipRequest, RelationshipFilter, RelationshipResponse
 };
 pub use audit_log::{AuditLog, CreateAuditLogRequest};
 pub use valuation::{ValuationRecord, AmortizationEntry, CreateValuationRequest};

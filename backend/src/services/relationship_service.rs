@@ -4,7 +4,9 @@ use crate::database::repositories::{RelationshipRepository, CIRepository, GraphR
 use crate::models::{
     RelationshipType, CreateRelationshipTypeRequest,
     UpdateRelationshipTypeRequest, RelationshipTypeFilter, RelationshipTypeResponse,
-    RelationshipTypeSummary, CIType
+    RelationshipTypeSummary, CIType,
+    Relationship, CreateRelationshipRequest, UpdateRelationshipRequest,
+    RelationshipFilter, RelationshipResponse, RelationshipWithDetails
 };
 use uuid::Uuid;
 use std::sync::Arc;
@@ -180,6 +182,189 @@ impl RelationshipService {
         self.relationship_repository
             .delete(id)
             .await?;
+        Ok(())
+    }
+
+    // === Relationship Instance Methods (Phase 3.1) ===
+
+    /// Create a new relationship instance between two CI assets
+    pub async fn create_relationship_instance(
+        &self,
+        request: CreateRelationshipRequest,
+        user_id: Uuid,
+    ) -> Result<RelationshipWithDetails> {
+        // Validate request
+        if let Err(validation_errors) = request.validate() {
+            return Err(anyhow::anyhow!("Validation failed: {}", validation_errors));
+        }
+
+        // Validate that assets are not the same
+        if request.from_ci_asset_id == request.to_ci_asset_id {
+            return Err(anyhow::anyhow!("Cannot create relationship from an asset to itself"));
+        }
+
+        // Get relationship type to validate constraints
+        let rel_type = self.relationship_repository
+            .get_by_id(request.relationship_type_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Relationship type not found"))?;
+
+        // Get the from and to assets
+        let from_asset = self.ci_repository
+            .get_ci_asset_by_id(request.from_ci_asset_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Source asset not found"))?;
+
+        let to_asset = self.ci_repository
+            .get_ci_asset_by_id(request.to_ci_asset_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Target asset not found"))?;
+
+        // Validate relationship type constraints (if specified)
+        if let Some(from_ci_type_id) = rel_type.from_ci_type_id {
+            if from_asset.ci_type_id != from_ci_type_id {
+                return Err(anyhow::anyhow!(
+                    "Source asset type does not match relationship type constraint"
+                ));
+            }
+        }
+
+        if let Some(to_ci_type_id) = rel_type.to_ci_type_id {
+            if to_asset.ci_type_id != to_ci_type_id {
+                return Err(anyhow::anyhow!(
+                    "Target asset type does not match relationship type constraint"
+                ));
+            }
+        }
+
+        // Check if relationship already exists
+        if self.relationship_repository
+            .relationship_exists(
+                request.relationship_type_id,
+                request.from_ci_asset_id,
+                request.to_ci_asset_id,
+            )
+            .await?
+        {
+            return Err(anyhow::anyhow!(
+                "Relationship already exists between these assets"
+            ));
+        }
+
+        // Create relationship in PostgreSQL
+        let relationship = self.relationship_repository
+            .create_relationship(&request, user_id)
+            .await?;
+
+        // Get CI type names for Neo4j
+        let from_ci_type = self.ci_repository
+            .get_ci_type_by_id(from_asset.ci_type_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Source CI type not found"))?;
+
+        let to_ci_type = self.ci_repository
+            .get_ci_type_by_id(to_asset.ci_type_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Target CI type not found"))?;
+
+        // Sync to Neo4j
+        if let Err(e) = self.graph_repository
+            .create_relationship(
+                request.from_ci_asset_id,
+                request.to_ci_asset_id,
+                &rel_type.name,
+                request.relationship_type_id,
+                request.attributes.clone(),
+                &from_ci_type.name,
+                &to_ci_type.name,
+                rel_type.is_bidirectional,
+            )
+            .await
+        {
+            tracing::warn!("Failed to sync relationship to Neo4j: {}", e);
+            // Don't fail the request if Neo4j sync fails, just log it
+        }
+
+        // Get the full relationship details to return
+        let relationship_details = self.relationship_repository
+            .get_relationship_by_id(relationship.id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created relationship"))?;
+
+        Ok(relationship_details)
+    }
+
+    /// Get a relationship by ID
+    pub async fn get_relationship_instance(&self, id: Uuid) -> Result<Option<RelationshipWithDetails>> {
+        self.relationship_repository
+            .get_relationship_by_id(id)
+            .await
+    }
+
+    /// List relationships with optional filtering
+    pub async fn list_relationship_instances(
+        &self,
+        filter: RelationshipFilter,
+    ) -> Result<Vec<RelationshipResponse>> {
+        self.relationship_repository
+            .list_relationships(&filter)
+            .await
+    }
+
+    /// Update a relationship's attributes
+    pub async fn update_relationship_instance(
+        &self,
+        id: Uuid,
+        request: UpdateRelationshipRequest,
+    ) -> Result<RelationshipWithDetails> {
+        // Validate request
+        if let Err(validation_errors) = request.validate() {
+            return Err(anyhow::anyhow!("Validation failed: {}", validation_errors));
+        }
+
+        // Update in PostgreSQL
+        self.relationship_repository
+            .update_relationship(id, &request)
+            .await?;
+
+        // Get the updated relationship with full details
+        let relationship_details = self.relationship_repository
+            .get_relationship_by_id(id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Relationship not found"))?;
+
+        // Note: We don't update Neo4j for attribute changes since Neo4j relationships
+        // are primarily for graph visualization and topology, not attribute storage
+
+        Ok(relationship_details)
+    }
+
+    /// Delete a relationship
+    pub async fn delete_relationship_instance(&self, id: Uuid) -> Result<()> {
+        // Get relationship details before deletion
+        let relationship = self.relationship_repository
+            .get_relationship_by_id(id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Relationship not found"))?;
+
+        // Delete from PostgreSQL
+        self.relationship_repository
+            .delete_relationship(id)
+            .await?;
+
+        // Delete from Neo4j
+        if let Err(e) = self.graph_repository
+            .delete_relationship(
+                relationship.from_ci_asset_id,
+                relationship.to_ci_asset_id,
+                relationship.relationship_type_id,
+            )
+            .await
+        {
+            tracing::warn!("Failed to delete relationship from Neo4j: {}", e);
+            // Don't fail the request if Neo4j deletion fails, just log it
+        }
+
         Ok(())
     }
 }
